@@ -1,14 +1,12 @@
-export async function uploadFile(file) {
+export async function uploadFile(file){
+  const formdata = new FormData()
+  formdata.append("file", file)
+  formdata.append("filename", file.name)
+  formdata.append("filesize", file.size)
+
   const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: file.name,
-      size: file.size,
-      userId: 1,
-    }),
+    body: formdata
   });
 
   if (response.status !== 201) {
