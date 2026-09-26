@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useDragDrop } from "../context/DragDropContext";
 import { uploadFile } from "../api/uploadFile";
+import ErrorPopup from "./ErrorPopup";
+
+function isJpgFile(file) {
+  const name = file?.name || "";
+  const type = file?.type || "";
+
+  return type === "image/jpeg" || type === "image/jpg" || /\.jpe?g$/i.test(name);
+}
 
 function DropZone() {
   const { state, dispatch } = useDragDrop();
   const [dragCounter, setDragCounter] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
 
   function handleDragEnter(event) {
     event.preventDefault();
@@ -40,16 +49,26 @@ function DropZone() {
       return;
     }
 
-    const droppedFiles = files.map((file, index) => ({
+    const validFiles = files.filter(isJpgFile);
+    const invalidFiles = files.filter((file) => !isJpgFile(file));
+
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map((file) => file.name).join(", ");
+      setErrorMessage(`Only JPG/JPEG files are allowed. Invalid file(s): ${invalidNames}`);
+      setDragCounter(0);
+      dispatch({ type: "DRAG_LEAVE" });
+      return;
+    }
+
+    const droppedFiles = validFiles.map((file, index) => ({
       id: `${file.name}-${file.size}-${file.lastModified}-${Date.now()}-${index}`,
       name: file.name,
       size: file.size,
       state: "pending",
     }));
 
-    // Keep the raw File objects separate so the state shape stays clean.
     const rawFileMap = new Map(
-      droppedFiles.map((fileEntry, index) => [fileEntry.id, files[index]])
+      droppedFiles.map((fileEntry, index) => [fileEntry.id, validFiles[index]])
     );
 
     dispatch({ type: "FILES_DROPPED", payload: droppedFiles });
@@ -81,30 +100,34 @@ function DropZone() {
   }
 
   return (
-    <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      style={{
-        border: state.status === "dragging" ? "2px dashed #4f46e5" : "2px dashed #cbd5e1",
-        backgroundColor: state.status === "dragging" ? "#eef2ff" : "#f8fafc",
-        padding: "40px",
-        textAlign: "center",
-        borderRadius: "12px",
-        transition: "all 0.15s ease",
-        cursor: "pointer",
-        color: "#334155",
-        fontWeight: 600,
-      }}
-    >
-      {state.status === "dragging"
-        ? "Drop your files here"
-        : "Drag files here or click to select them"}
-      <div style={{ fontSize: "0.85rem", marginTop: "8px", color: "#64748b" }}>
-        Current status: {state.status}
+    <>
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        style={{
+          border: state.status === "dragging" ? "2px dashed #4f46e5" : "2px dashed #cbd5e1",
+          backgroundColor: state.status === "dragging" ? "#eef2ff" : "#f8fafc",
+          padding: "40px",
+          textAlign: "center",
+          borderRadius: "12px",
+          transition: "all 0.15s ease",
+          cursor: "pointer",
+          color: "#334155",
+          fontWeight: 600,
+        }}
+      >
+        {state.status === "dragging"
+          ? "Drop your JPG files here"
+          : "Drag JPG files here or click to select them"}
+        <div style={{ fontSize: "0.85rem", marginTop: "8px", color: "#64748b" }}>
+          Current status: {state.status}
+        </div>
       </div>
-    </div>
+
+      <ErrorPopup message={errorMessage} onClose={() => setErrorMessage("")} />
+    </>
   );
 }
 
